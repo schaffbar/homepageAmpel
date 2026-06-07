@@ -1,0 +1,53 @@
+.ampel-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100px;
+    border: 2px solid #333;
+    border-radius: 10px;
+    padding: 10px;
+    background-color: #555;
+    margin: 20px auto;
+}
+
+.ampel-light {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin: 5px;
+    background-color: #444;
+}
+
+.ampel-light.active {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+}
+
+.green-light.active {
+    background-color: #0c0;
+}
+
+.yellow-light.active {
+    background-color: #ff0;
+}
+
+.red-light.active {
+    background-color: #c00;
+}
+
+.ampel-text {
+    text-align: center;
+    margin-top: 15px;
+}
+
+.ampel-message {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.ampel-message-timestamp {
+    color: #666;
+    font-style: italic;
+}
