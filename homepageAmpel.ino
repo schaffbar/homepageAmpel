@@ -25,12 +25,12 @@ const String RED_YELLOW_TEXT = "redyellow";
 const String GREEN_TEXT = "green";
 const String YELLOW_TEXT = "yellow";
 
-#define CLOSE_BUTTON_PIN 1
-#define YELLOW_BUTTON_PIN 2
-#define GREEN_BUTTON_PIN 3
-#define CLOSE_LED_PIN 21
-#define YELLOW_LED_PIN 20
-#define GREEN_LED_PIN 10
+#define RED_BUTTON_PIN 21
+#define YELLOW_BUTTON_PIN 20
+#define GREEN_BUTTON_PIN 10
+#define RED_LED_PIN 1
+#define YELLOW_LED_PIN 2
+#define GREEN_LED_PIN 3
 
 int buttonStateRED = LOW;  // variable for reading the pushbutton status
 int buttonStateYELLOW = LOW;  // variable for reading the pushbutton status
@@ -45,12 +45,12 @@ void setup() {
   Serial.begin(9600);
 
   //Buttons
-  pinMode(CLOSE_BUTTON_PIN, INPUT);
+  pinMode(RED_BUTTON_PIN, INPUT);
   pinMode(YELLOW_BUTTON_PIN, INPUT);
   pinMode(GREEN_BUTTON_PIN, INPUT);
 
   //LEDs
-  pinMode(CLOSE_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
   pinMode(GREEN_LED_PIN, OUTPUT);
 
@@ -65,15 +65,15 @@ void setup() {
   connectToWifi();
 
   // Initial state = RED
-  digitalWrite(CLOSE_LED_PIN, HIGH);
+  digitalWrite(RED_LED_PIN, HIGH);
   updateStatus(RED);
 }
 
 void loop() {
-  buttonStateRED = digitalRead(CLOSE_BUTTON_PIN);
+  buttonStateRED = digitalRead(RED_BUTTON_PIN);
   if (buttonStateRED == HIGH) {
     // turn LED on:
-    digitalWrite(CLOSE_LED_PIN, HIGH);
+    digitalWrite(RED_LED_PIN, HIGH);
     updateStatus(RED);
     // turn others off
     digitalWrite(YELLOW_LED_PIN, LOW);
@@ -88,7 +88,7 @@ void loop() {
     digitalWrite(YELLOW_LED_PIN, HIGH);
     updateStatus(YELLOW);
     // turn others off
-    digitalWrite(CLOSE_LED_PIN, LOW);
+    digitalWrite(RED_LED_PIN, LOW);
     digitalWrite(GREEN_LED_PIN, LOW);
   } 
 
@@ -98,7 +98,7 @@ void loop() {
     digitalWrite(GREEN_LED_PIN, HIGH);
     updateStatus(GREEN);
     // turn others off
-    digitalWrite(CLOSE_LED_PIN, LOW);
+    digitalWrite(RED_LED_PIN, LOW);
     digitalWrite(YELLOW_LED_PIN, LOW);
   }
 
@@ -112,7 +112,7 @@ void loop() {
 }
 
 void updateStatus(int requestedStatus){
-  String message = "Request status change to: ";
+  String message = "Anfrage Status nach: ";
   switch (requestedStatus){
     case RED:
       message.concat(String(RED_TEXT));
@@ -137,6 +137,7 @@ void updateStatus(int requestedStatus){
 }
 
 void printMessageToDisplay(int line, String message) {
+  Serial.println(wifiStatus);
   Serial.println(message);
 
   display.clearDisplay();
@@ -149,24 +150,60 @@ void printMessageToDisplay(int line, String message) {
   display.display();
 }
 
+String convertStatusToString(int status){
+  String statusString = "Unbekannt";
+  switch (status) {
+    case WL_STOPPED:
+      statusString = "Gestoppt";
+      break;
+    case WL_IDLE_STATUS:
+      statusString = "Idle";
+      break;
+    case WL_NO_SSID_AVAIL:
+      statusString = "Keine SSID gefunden";
+      break;
+    case WL_SCAN_COMPLETED:
+      statusString = "Scan fertig";
+      break;
+    case WL_CONNECTED:
+      statusString = "Verbunden";
+      break;
+    case WL_CONNECT_FAILED:
+      statusString = "Fehler";
+      break;
+    case WL_CONNECTION_LOST:
+      statusString = "Verbindung verloren";
+      break;
+    case WL_DISCONNECTED:
+      statusString = "Getrennt";
+      break;
+  }
+  return statusString;
+}
+
+
 void connectToWifi(){
-  if (WiFi.status() != WL_CONNECTED){
+  int status = WiFi.status();
+  if (status != WL_CONNECTED){
     // Attempt to connect to Wifi network
     Serial.print("Attempting to connect to Wifi SSID: ");
     Serial.println(wifiSsid);
-    WiFi.mode(WIFI_STA);
     WiFi.begin(wifiSsid, wifiPassword);
-    while (WiFi.status() != WL_CONNECTED) {
+    status = WiFi.status();
+
+    while (status != WL_CONNECTED) {
       // failed, retry
-      printMessageToDisplay(1,"Wifi failed ! Retry.");
+      wifiStatus = "Wifi: " + convertStatusToString(status);
+      printMessageToDisplay(1,"Retry.");
       delay(5000);
+      status = WiFi.status();
     }
     Serial.print("You're connected to the wifi network. Status: ");
     Serial.println(WiFi.status());
-    wifiStatus = "Wifi connected. ";
-    printMessageToDisplay(1,wifiStatus + WiFi.status());
+    wifiStatus = "Wifi: " + convertStatusToString(status);
   }
 }
+
 
 String sendStatusToWebServer(int status) {
   String returnMessage = "";
@@ -206,7 +243,8 @@ String sendStatusToWebServer(int status) {
     if (!error) {
       Serial.println("Payload parsed sucessful");
       const char* parsedMessage = doc["message"];
-      returnMessage = String(parsedMessage);
+      const char* parsedStatus = doc["status"];
+      returnMessage = String(parsedMessage) + " -> " + String (parsedStatus);
       Serial.print("Parsed message: ");
       Serial.println(returnMessage);
     } else {
@@ -222,8 +260,6 @@ String sendStatusToWebServer(int status) {
   }
   // Free resources
   http.end();
-
-
 
   return returnMessage;
 }
