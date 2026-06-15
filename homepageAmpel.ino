@@ -1,8 +1,9 @@
+#include <Arduino.h>
+#include <WiFi.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
-#include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "wifiSettings.h"
@@ -41,8 +42,16 @@ WiFiClient wifiClient;
 HTTPClient http;
 String wifiStatus = "";
 
+
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  
+  delay(250); // wait for the OLED to power up
+  display.begin(i2c_Address, true); // Address 0x3C default
+  //display.setContrast (0); // dim display
+  display.display();
+  printMessageToDisplay(1, "Init ....");
+  connectToWifi();
 
   //Buttons
   pinMode(RED_BUTTON_PIN, INPUT);
@@ -53,16 +62,6 @@ void setup() {
   pinMode(RED_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
   pinMode(GREEN_LED_PIN, OUTPUT);
-
-  delay(250); // wait for the OLED to power up
-  display.begin(i2c_Address, true); // Address 0x3C default
-  //display.setContrast (0); // dim display
-  display.display();
-
-  // Clear the buffer.
-  printMessageToDisplay(1, "Init ....");
-
-  connectToWifi();
 
   // Initial state = RED
   digitalWrite(RED_LED_PIN, HIGH);
@@ -183,11 +182,12 @@ String convertStatusToString(int status){
 
 
 void connectToWifi(){
-  int status = WiFi.status();
+  int status = 0;
   if (status != WL_CONNECTED){
     // Attempt to connect to Wifi network
-    Serial.print("Attempting to connect to Wifi SSID: ");
-    Serial.println(wifiSsid);
+    Serial.print("Attempting to connect to Wifi SSID: >");
+    Serial.print(wifiSsid);
+    Serial.println("<");
     WiFi.begin(wifiSsid, wifiPassword);
     status = WiFi.status();
 
@@ -197,11 +197,58 @@ void connectToWifi(){
       printMessageToDisplay(1,"Retry.");
       delay(5000);
       status = WiFi.status();
+      ScanWiFi();
     }
     Serial.print("You're connected to the wifi network. Status: ");
     Serial.println(WiFi.status());
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
     wifiStatus = "Wifi: " + convertStatusToString(status);
   }
+}
+
+
+void ScanWiFi() {
+  Serial.println("Scan start");
+  // WiFi.scanNetworks will return the number of networks found.
+  int n = WiFi.scanNetworks();
+  Serial.println("Scan done");
+  if (n == 0) {
+    Serial.println("no networks found");
+  } else {
+    Serial.print(n);
+    Serial.println(" networks found");
+    Serial.println("Nr | SSID                             | RSSI | CH | Encryption");
+    for (int i = 0; i < n; ++i) {
+      // Print SSID and RSSI for each network found
+      Serial.printf("%2d", i + 1);
+      Serial.print(" | ");
+      Serial.printf("%-32.32s", WiFi.SSID(i).c_str());
+      Serial.print(" | ");
+      Serial.printf("%4" PRIi32, WiFi.RSSI(i));
+      Serial.print(" | ");
+      Serial.printf("%2" PRIi32, WiFi.channel(i));
+      Serial.print(" | ");
+      switch (WiFi.encryptionType(i)) {
+        case WIFI_AUTH_OPEN:            Serial.print("open"); break;
+        case WIFI_AUTH_WEP:             Serial.print("WEP"); break;
+        case WIFI_AUTH_WPA_PSK:         Serial.print("WPA"); break;
+        case WIFI_AUTH_WPA2_PSK:        Serial.print("WPA2"); break;
+        case WIFI_AUTH_WPA_WPA2_PSK:    Serial.print("WPA+WPA2"); break;
+        case WIFI_AUTH_WPA2_ENTERPRISE: Serial.print("WPA2-EAP"); break;
+        case WIFI_AUTH_WPA3_PSK:        Serial.print("WPA3"); break;
+        case WIFI_AUTH_WPA2_WPA3_PSK:   Serial.print("WPA2+WPA3"); break;
+        case WIFI_AUTH_WAPI_PSK:        Serial.print("WAPI"); break;
+        default:                        Serial.print("unknown");
+      }
+      Serial.println();
+      delay(10);
+    }
+  }
+
+  // Delete the scan result to free memory for code below.
+  WiFi.scanDelete();
+  Serial.println("-------------------------------------");
 }
 
 
